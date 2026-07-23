@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="${title}">Kollus Sample</title>
+    <link rel="stylesheet" href="/stylesheets/style.css">
+</head>
+<body>
+<div class="container">
+    <h1 th:text="${title}">Kollus Java(Spring) Sample</h1>
+    <p style="color:#555; margin-top:-8px;">Kollus 플랫폼 연동 샘플 코드입니다.</p>
+
+    <!-- 공개 데모 콘텐츠 iframe — Kollus 플레이어가 바로 동작하는 모습을 키 설정 없이 보여줍니다 -->
+    <div class="card" style="padding:0; overflow:hidden;">
+        <div class="player-wrap">
+            <iframe
+                    src="https://v.kr.kollus.com/dzgAE3b9"
+                    allowfullscreen
+                    allow="local-network-access; loopback-network; accelerometer; autoplay; encrypted-media; fullscreen; picture-in-picture;"></iframe>
+        </div>
+    </div>
+
+    <div class="card">
+        <a class="nav-link" href="/sample">
+            샘플 플레이어
+            <span class="hint">JWT 발급 및 웹/모바일 플레이어 호출</span>
+        </a>
+        <a class="nav-link" href="/multidrm">
+            멀티 DRM 플레이어
+            <span class="hint">Widevine/PlayReady/FairPlay 멀티 DRM(inkaDRM·Pallycon) 재생</span>
+        </a>
+        <a class="nav-link" href="/upload">
+            파일 업로드
+            <span class="hint">Kollus Upload API 연동</span>
+        </a>
+    </div>
+</div>
+</body>
+</html>

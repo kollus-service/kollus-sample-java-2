@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Error</title>
+    <link rel="stylesheet" href="/stylesheets/style.css">
+</head>
+<body>
+<div class="container">
+    <div class="card">
+        <h1 th:text="${message}">오류가 발생했습니다.</h1>
+        <p style="color:#888; margin:-12px 0 16px;">HTTP <span th:text="${status}">500</span></p>
+        <pre th:text="${error}" style="white-space:pre-wrap; word-break:break-all; color:#991b1b; font-size:.85rem;"></pre>
+    </div>
+</div>
+</body>
+</html>

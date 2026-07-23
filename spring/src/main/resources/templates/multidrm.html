@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="${title}">Kollus 멀티 DRM 플레이어</title>
+    <link rel="stylesheet" href="/stylesheets/style.css">
+</head>
+<body>
+<div class="container">
+    <h1>Kollus 멀티 DRM 플레이어</h1>
+    <p style="color: #666; margin-top:-12px;">Widevine / PlayReady / FairPlay 멀티 DRM(inkaDRM·Pallycon) 재생 샘플입니다.
+        브라우저 User-Agent 에 맞는 DRM 종류와 스트리밍 방식이 서버에서 자동 선택됩니다.</p>
+
+    <div class="card">
+        <h3>재생 정보</h3>
+        <div class="field">
+            <label for="mck">MCK (미디어 콘텐츠 키):</label>
+            <input id="mck" type="text" placeholder="재생할 미디어 콘텐츠 키">
+        </div>
+        <div class="field">
+            <label for="contentId">Content ID (멀티 DRM 콘텐츠 ID / 업로드 파일 키):</label>
+            <input id="contentId" type="text" placeholder="멀티 DRM 콘텐츠 ID">
+        </div>
+        <div class="field">
+            <label for="cuid">CUID (시청자 ID, 선택):</label>
+            <input id="cuid" type="text" placeholder="guest">
+        </div>
+        <button id="playBtn" type="button" class="btn" onclick="handlePlay()">재생</button>
+        <div id="errorMsg" class="msg error"></div>
+    </div>
+
+    <!-- 플레이어 섹션 (재생 시 활성화) -->
+    <div id="playerSection" style="display: none;">
+        <div class="card">
+            <h3>멀티 DRM 웹 플레이어</h3>
+            <div class="player-wrap">
+                <iframe id="kollusIframe"
+                        src="about:blank"
+                        allowfullscreen
+                        allow="local-network-access; loopback-network; accelerometer; autoplay; encrypted-media; fullscreen; picture-in-picture;"></iframe>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function handlePlay() {
+        const mck = document.getElementById('mck').value.trim();
+        const contentId = document.getElementById('contentId').value.trim();
+        const cuid = document.getElementById('cuid').value.trim();
+
+        document.getElementById('errorMsg').style.display = 'none';
+        document.getElementById('playerSection').style.display = 'none';
+
+        if (!mck) { showError('MCK(미디어 콘텐츠 키)를 입력하세요.'); return; }
+        if (!contentId) { showError('Content ID(멀티 DRM 콘텐츠 ID)를 입력하세요.'); return; }
+
+        const params = new URLSearchParams({media_content_key: mck, content_id: contentId});
+        if (cuid) params.set('cuid', cuid);
+
+        // 서버가 User-Agent 를 분석해 DRM/스트리밍 방식을 선택하므로,
+        // 브라우저가 직접 이 URL 을 로드하도록 iframe src 로 지정한다.
+        document.getElementById('kollusIframe').src = '/player/multi-drm?' + params.toString();
+        document.getElementById('playerSection').style.display = 'block';
+    }
+
+    function showError(msg) {
+        const el = document.getElementById('errorMsg');
+        el.textContent = msg;
+        el.style.display = 'block';
+    }
+</script>
+</body>
+</html>

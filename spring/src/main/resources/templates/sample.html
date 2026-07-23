@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="${title}">Kollus Player Sample</title>
+    <link rel="stylesheet" href="/stylesheets/style.css">
+</head>
+<body>
+<div class="container">
+    <h1>Kollus Player Sample</h1>
+
+    <div class="card">
+        <h3>JWT 발급</h3>
+        <div class="field">
+            <label for="secretKey">Secret Key:</label>
+            <input id="secretKey" type="text" th:value="${defaultSecretKey}">
+        </div>
+        <div class="field">
+            <label for="customKey">Custom Key:</label>
+            <input id="customKey" type="text" th:value="${defaultCustomKey}">
+        </div>
+        <div class="field">
+            <label for="mck">MCK (미디어 콘텐츠 키):</label>
+            <input id="mck" type="text" th:value="${defaultMck}" placeholder="예: oGThtzEp">
+        </div>
+        <div class="field-row">
+            <div class="field">
+                <label for="cuid">CUID (시청자 ID):</label>
+                <input id="cuid" type="text" placeholder="user001">
+            </div>
+            <div class="field">
+                <label for="expt">만료 (분):</label>
+                <input id="expt" type="number" value="3" min="1">
+            </div>
+        </div>
+        <button id="issueBtn" type="button" class="btn" onclick="handleJwtIssue()">JWT 발급</button>
+        <div id="errorMsg" class="msg error"></div>
+    </div>
+
+    <!-- 플레이어 섹션 (JWT 발급 후 활성화) -->
+    <div id="playerSection" style="display: none;">
+
+        <div class="card">
+            <h3>웹 플레이어 (iframe)</h3>
+            <div class="player-wrap">
+                <iframe id="kollusIframe"
+                        src="about:blank"
+                        allowfullscreen
+                        allow="local-network-access; loopback-network; accelerometer; autoplay; encrypted-media; fullscreen; picture-in-picture;"></iframe>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>모바일 전용 플레이어</h3>
+            <p style="color: #666; font-size: 14px; margin-top: 0;">Kollus 앱을 통해 재생 또는 다운로드합니다. (모바일 전용)</p>
+            <div class="btn-row">
+                <a id="btnPlay" href="javascript:void(0);" class="btn" onclick="handlePlayerCall('path')">스트리밍 재생</a>
+                <a id="btnDownload" href="javascript:void(0);" class="btn btn-secondary" onclick="handlePlayerCall('download')">다운로드</a>
+            </div>
+        </div>
+
+        <div class="card token-box">
+            <p style="margin: 0 0 4px;">JWT Token:</p>
+            <code id="jwtTokenDisplay"></code>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentJWT = null;
+    let currentCustomKey = null;
+
+    async function handleJwtIssue() {
+        const mck = document.getElementById('mck').value.trim();
+        const cuid = document.getElementById('cuid').value.trim();
+        const expt = document.getElementById('expt').value.trim();
+        const secretKey = document.getElementById('secretKey').value.trim();
+        const customKey = document.getElementById('customKey').value.trim();
+
+        document.getElementById('errorMsg').style.display = 'none';
+        document.getElementById('playerSection').style.display = 'none';
+
+        if (!mck) {
+            showError('MCK(미디어 콘텐츠 키)를 입력하세요.');
+            return;
+        }
+
+        try {
+            document.getElementById('issueBtn').textContent = '발급 중...';
+            document.getElementById('issueBtn').disabled = true;
+
+            const res = await fetch('/jwt/create', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    mck: mck,
+                    cuid: cuid || 'sample_user',
+                    expt: parseInt(expt) || 3,
+                    secretKey: secretKey,
+                    customKey: customKey
+                })
+            });
+
+            const data = await res.json();
+
+            if (data.error) {
+                showError(data.error);
+                return;
+            }
+
+            currentJWT = data.token;
+            currentCustomKey = customKey;
+
+            document.getElementById('kollusIframe').src = data.link;
+            document.getElementById('jwtTokenDisplay').textContent = data.token;
+            document.getElementById('playerSection').style.display = 'block';
+
+        } catch (err) {
+            showError('JWT 발급 실패: ' + err.message);
+        } finally {
+            document.getElementById('issueBtn').textContent = 'JWT 발급';
+            document.getElementById('issueBtn').disabled = false;
+        }
+    }
+
+    function showError(msg) {
+        const el = document.getElementById('errorMsg');
+        el.textContent = msg;
+        el.style.display = 'block';
+    }
+
+    // ── 모바일 전용 플레이어 호출 ──────────────────────────────
+
+    function isMobile() {
+        const agent = window.navigator.userAgent;
+        const mobileRegex = [/Android/i, /iPhone/i, /iPad/i, /iPod/i, /BlackBerry/i, /Windows Phone/i];
+        const isTouchDevice = navigator.maxTouchPoints > 0;
+        return mobileRegex.some(function (r) { return r.test(agent); }) ||
+            (/Linux/i.test(agent) && isTouchDevice) ||
+            (agent.includes('Macintosh') && isTouchDevice);
+    }
+
+    function isPageVisible() {
+        if (document.hidden !== undefined) return !document.hidden;
+        if (document.webkitHidden !== undefined) return !document.webkitHidden;
+        return true;
+    }
+
+    function kollusSchemeCall(schemeParam) {
+        const agent = navigator.userAgent.toLowerCase();
+        const isIOS = agent.includes('iphone') || agent.includes('ipad') || agent.includes('ipod') ||
+            (agent.includes('macintosh') && navigator.maxTouchPoints > 0);
+        const device = isIOS ? 'ios' : 'android';
+
+        const schemaGeneral = 'kollus://' + schemeParam;
+        const schemaIntent = 'intent://' + schemeParam + '#Intent;package=com.kollus.media;scheme=kollus;end';
+
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        document.body.appendChild(iframe);
+
+        const clickedAt = +new Date();
+
+        setTimeout(function () {
+            if (isIOS) {
+                const timer = setTimeout(function () {
+                    if (isPageVisible() && (+new Date() - clickedAt) < 4000) gotoStore(device);
+                }, 3000);
+                window.addEventListener('visibilitychange', function () {
+                    if (isPageVisible()) clearTimeout(timer);
+                });
+                // Safari 601.1+부터 iframe.src로 커스텀 스킴 호출이 차단됨 → window.top.location 방식으로 우회
+                const safariVersion = parseFloat(agent.substr(agent.lastIndexOf('safari/') + 7, 7));
+                if (safariVersion >= 601.1) {
+                    window.top.location.href = schemaGeneral;
+                } else {
+                    iframe.src = schemaGeneral;
+                }
+            } else {
+                // Daum 브라우저는 Chrome 계열임에도 intent scheme을 지원하지 않아 별도 분기 처리
+                const chrome25 = agent.includes('chrome') &&
+                    navigator.appVersion.match(/Chrome\/(\d+\.\d+)/)[1] > 25;
+                if (chrome25 && !agent.includes('daum')) {
+                    window.top.location.href = schemaIntent;
+                } else {
+                    setTimeout(function () {
+                        if (+new Date() - clickedAt < 2000) gotoStore(device);
+                    }, 1500);
+                    iframe.src = schemaGeneral;
+                }
+            }
+        }, 1);
+    }
+
+    function gotoStore(device) {
+        window.top.location.href = device === 'ios'
+            ? 'https://itunes.apple.com/us/app/kollusplayer/id760006888?l=ko&ls=1&mt=8'
+            : 'market://details?id=com.kollus.media';
+    }
+
+    function handlePlayerCall(method) {
+        if (!currentJWT) {
+            alert('먼저 JWT를 발급하세요.');
+            return;
+        }
+        if (!isMobile()) {
+            alert('모바일로 실행해주세요.');
+            return;
+        }
+        const schemeParam = method + '?url=' + encodeURIComponent(
+            'http://v.kr.kollus.com/si?jwt=' + currentJWT + '&custom_key=' + currentCustomKey
+        );
+        kollusSchemeCall(schemeParam);
+    }
+</script>
+</body>
+</html>

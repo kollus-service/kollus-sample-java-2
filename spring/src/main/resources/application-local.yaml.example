@@ -1,0 +1,28 @@
+# Kollus 연동 민감정보 설정 템플릿
+#
+# 이 파일을 application-local.yaml 로 복사한 뒤 실제 값으로 교체하세요.
+#   cp src/main/resources/application-local.yaml.example src/main/resources/application-local.yaml
+#
+# application-local.yaml 은 .gitignore 에 포함되어 있습니다. 절대 커밋하지 마세요.
+# 발급 위치: Kollus 관리자 콘솔 (https://admin.kollus.com)
+kollus:
+  secret-key: "YOUR_SECRET_KEY"       # 서비스 계정 > 보안키 (JWT 서명 키)
+  custom-key: "YOUR_CUSTOM_KEY"       # 서비스 계정 > 커스텀키 (플레이어 URL 커스텀 키)
+  api-token: "YOUR_API_TOKEN"         # 서비스 계정 > API 토큰 (Upload API 액세스 토큰)
+  category-key: "YOUR_CATEGORY_KEY"   # 콘텐츠 > 카테고리 (업로드 카테고리 키)
+  # 다음 회차 기능 샘플 MCK 목록 (예: ["mckA", "mckB"])
+  next-episode-mcks: []
+
+  # ── 멀티 DRM(Widevine/PlayReady/FairPlay) 재생용 (선택) ──────────────
+  # 멀티 DRM 은 일반 재생과 다른 별도 Kollus 계정 + Pallycon(inkaDRM) 계정 키를 사용합니다.
+  # 사용하지 않으면 비워둬도 됩니다. (/multidrm 접근 시에만 필요)
+  multidrm:
+    security-key: "YOUR_MULTIDRM_SECURITY_KEY"   # 멀티 DRM 전용 서비스 계정 > 보안키
+    custom-key: "YOUR_MULTIDRM_CUSTOM_KEY"       # 멀티 DRM 전용 서비스 계정 > 커스텀키
+  inka:
+    access-key: "YOUR_INKA_ACCESS_KEY"           # DoveRunner(Pallycon) 콘솔 > Access Key
+    site-key: "YOUR_INKA_SITE_KEY"               # DoveRunner 콘솔 > Site Key (32바이트, 라이선스 룰 암호화용)
+    site-id: "YOUR_INKA_SITE_ID"                 # DoveRunner 콘솔 > Site ID
+    iv: "0123456789abcdef"                       # 라이선스 룰 AES-256-CBC 암호화 IV (16바이트)
+    license-url: "https://license.pallycon.com/ri/licenseManager.do"
+    certificate-url: "https://license.pallycon.com/ri/fpsKeyManager.do"
