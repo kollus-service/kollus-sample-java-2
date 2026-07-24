@@ -24,5 +24,5 @@ kollus:
     site-key: "YOUR_INKA_SITE_KEY"               # DoveRunner 콘솔 > Site Key (32바이트, 라이선스 룰 암호화용)
     site-id: "YOUR_INKA_SITE_ID"                 # DoveRunner 콘솔 > Site ID
     iv: "0123456789abcdef"                       # 라이선스 룰 AES-256-CBC 암호화 IV (16바이트)
-    license-url: "https://license.pallycon.com/ri/licenseManager.do"
-    certificate-url: "https://license.pallycon.com/ri/fpsKeyManager.do"
+    license-url: "https://drm-license.doverunner.com/ri/licenseManager.do"
+    certificate-url: "https://drm-license.doverunner.com/ri/fpsKeyManager.do"
