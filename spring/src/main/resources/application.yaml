@@ -32,5 +32,5 @@ kollus:
     site-key: ""
     site-id: ""
     iv: "0123456789abcdef"
-    license-url: "https://license.pallycon.com/ri/licenseManager.do"
-    certificate-url: "https://license.pallycon.com/ri/fpsKeyManager.do"
+    license-url: "https://drm-license.doverunner.com/ri/licenseManager.do"
+    certificate-url: "https://drm-license.doverunner.com/ri/fpsKeyManager.do"
