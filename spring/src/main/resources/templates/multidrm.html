@@ -1,3 +1,4 @@
+<!--/* 멀티 DRM 입력 폼 페이지 — MCK/Content ID 를 받아 /player/multi-drm 을 iframe 으로 로드해 브라우저 User-Agent 기반 DRM 재생을 시연한다. */-->
 <!DOCTYPE html>
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head>
@@ -44,6 +45,10 @@
 </div>
 
 <script>
+    /**
+     * "재생" 버튼 클릭 핸들러 — 입력값을 검증한 뒤 서버 플레이어 라우트(/player/multi-drm)를
+     * iframe 으로 로드해 브라우저의 User-Agent 가 서버에 그대로 전달되도록 한다.
+     */
     function handlePlay() {
         const mck = document.getElementById('mck').value.trim();
         const contentId = document.getElementById('contentId').value.trim();
@@ -64,6 +69,10 @@
         document.getElementById('playerSection').style.display = 'block';
     }
 
+    /**
+     * 오류 메시지 영역에 문구를 표시한다.
+     * @param {string} msg 표시할 오류 메시지
+     */
     function showError(msg) {
         const el = document.getElementById('errorMsg');
         el.textContent = msg;

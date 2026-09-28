@@ -1,3 +1,4 @@
+<!--/* 샘플 플레이어 페이지 — 입력한 키로 JWT 를 발급(/jwt/create)하고 iframe 웹 플레이어 및 Kollus 앱 스킴(모바일) 호출을 시연한다. */-->
 <!DOCTYPE html>
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head>
@@ -67,9 +68,39 @@
 </div>
 
 <script>
+    /** 만료(분) 입력이 비어 있거나 숫자가 아닐 때 사용하는 기본 만료 시간 (분) — 서버 기본값과 동일 */
+    const DEFAULT_EXPIRE_MINUTES = 3;
+
+    // ── 앱 스킴 호출 타이밍 ─────────────────────────────────────
+    /** 스킴 호출을 다음 틱으로 미루는 지연 (ms) — hidden iframe 이 DOM 에 붙은 뒤 호출하기 위한 최소 지연 */
+    const SCHEME_CALL_DEFER_MS = 1;
+    /** iOS: 앱이 열리지 않았다고 판단하기까지 기다리는 시간 (ms) — 앱 전환 확인 프롬프트 응답 시간을 고려한 여유 */
+    const IOS_APP_OPEN_WAIT_MS = 3000;
+    /** iOS: 클릭 후 이 시간(ms)을 넘겼으면 앱 전환으로 페이지가 멈췄던 것으로 보고 스토어 이동을 생략 */
+    const IOS_STORE_REDIRECT_MAX_ELAPSED_MS = 4000;
+    /** Android(intent 미지원 브라우저): 앱이 열리지 않았다고 판단하기까지 기다리는 시간 (ms) — 스킴 실패가 iOS 보다 빨리 드러남 */
+    const ANDROID_APP_OPEN_WAIT_MS = 1500;
+    /** Android(intent 미지원 브라우저): 클릭 후 이 시간(ms)을 넘겼으면 앱이 열린 것으로 보고 스토어 이동을 생략 */
+    const ANDROID_STORE_REDIRECT_MAX_ELAPSED_MS = 2000;
+
+    // ── 브라우저 버전 판별 ──────────────────────────────────────
+    /** User-Agent 에서 Safari(WebKit) 버전 앞에 붙는 토큰 (예: "safari/604.1") */
+    const SAFARI_VERSION_TOKEN = 'safari/';
+    /** 토큰 뒤에서 읽어 오는 Safari 버전 문자열 최대 길이 (예: "604.1.38" 까지 수용) */
+    const SAFARI_VERSION_TEXT_LENGTH = 7;
+    /** 이 Safari(WebKit) 버전부터 iframe.src 커스텀 스킴 호출이 차단되어 window.top.location 방식을 사용 */
+    const SAFARI_MIN_VERSION_FOR_SCHEME = 601.1;
+    /** intent:// 스킴을 지원하는 Chrome 메이저 버전 기준 (이 버전 초과에서만 intent 사용) */
+    const CHROME_MIN_VERSION_FOR_INTENT = 25;
+
     let currentJWT = null;
     let currentCustomKey = null;
 
+    /**
+     * "JWT 발급" 버튼 클릭 핸들러 — 입력값으로 서버(/jwt/create)에 JWT 발급을 요청하고
+     * 성공 시 iframe 플레이어와 토큰 표시 영역을 활성화한다.
+     * @returns {Promise<void>}
+     */
     async function handleJwtIssue() {
         const mck = document.getElementById('mck').value.trim();
         const cuid = document.getElementById('cuid').value.trim();
@@ -95,7 +126,7 @@
                 body: JSON.stringify({
                     mck: mck,
                     cuid: cuid || 'sample_user',
-                    expt: parseInt(expt) || 3,
+                    expt: parseInt(expt) || DEFAULT_EXPIRE_MINUTES,
                     secretKey: secretKey,
                     customKey: customKey
                 })
@@ -116,6 +147,7 @@
             document.getElementById('playerSection').style.display = 'block';
 
         } catch (err) {
+            // 네트워크 오류 또는 응답 JSON 파싱 실패: 사용자에게 메시지만 표시 (버튼 상태는 finally 에서 복구)
             showError('JWT 발급 실패: ' + err.message);
         } finally {
             document.getElementById('issueBtn').textContent = 'JWT 발급';
@@ -123,6 +155,10 @@
         }
     }
 
+    /**
+     * 오류 메시지 영역에 문구를 표시한다.
+     * @param {string} msg 표시할 오류 메시지
+     */
     function showError(msg) {
         const el = document.getElementById('errorMsg');
         el.textContent = msg;
@@ -131,6 +167,11 @@
 
     // ── 모바일 전용 플레이어 호출 ──────────────────────────────
 
+    /**
+     * 현재 기기가 모바일(터치) 환경인지 판별한다.
+     * iPadOS 13+ 는 Macintosh UA 를 보내므로 터치 포인트 유무로 함께 판별한다.
+     * @returns {boolean}
+     */
     function isMobile() {
         const agent = window.navigator.userAgent;
         const mobileRegex = [/Android/i, /iPhone/i, /iPad/i, /iPod/i, /BlackBerry/i, /Windows Phone/i];
@@ -140,12 +181,21 @@
             (agent.includes('Macintosh') && isTouchDevice);
     }
 
+    /**
+     * 페이지가 현재 화면에 보이는 상태인지 판별한다 (앱 전환 여부 감지용).
+     * @returns {boolean}
+     */
     function isPageVisible() {
         if (document.hidden !== undefined) return !document.hidden;
         if (document.webkitHidden !== undefined) return !document.webkitHidden;
         return true;
     }
 
+    /**
+     * Kollus 앱 커스텀 스킴(kollus:// 또는 intent://)을 호출하고,
+     * 일정 시간 내 앱이 열리지 않으면 스토어로 이동시킨다.
+     * @param {string} schemeParam 스킴 뒤에 붙는 경로+쿼리 (예: "path?url=...")
+     */
     function kollusSchemeCall(schemeParam) {
         const agent = navigator.userAgent.toLowerCase();
         const isIOS = agent.includes('iphone') || agent.includes('ipad') || agent.includes('ipod') ||
@@ -164,40 +214,52 @@
         setTimeout(function () {
             if (isIOS) {
                 const timer = setTimeout(function () {
-                    if (isPageVisible() && (+new Date() - clickedAt) < 4000) gotoStore(device);
-                }, 3000);
-                window.addEventListener('visibilitychange', function () {
+                    if (isPageVisible() && (+new Date() - clickedAt) < IOS_STORE_REDIRECT_MAX_ELAPSED_MS) gotoStore(device);
+                }, IOS_APP_OPEN_WAIT_MS);
+                // 앱으로 전환된 뒤 페이지가 다시 보이면 앱이 열린 것이므로 스토어 이동 타이머를 취소한다
+                function handleVisibilityChange() {
                     if (isPageVisible()) clearTimeout(timer);
-                });
+                }
+                window.addEventListener('visibilitychange', handleVisibilityChange);
                 // Safari 601.1+부터 iframe.src로 커스텀 스킴 호출이 차단됨 → window.top.location 방식으로 우회
-                const safariVersion = parseFloat(agent.substr(agent.lastIndexOf('safari/') + 7, 7));
-                if (safariVersion >= 601.1) {
+                const safariVersion = parseFloat(agent.substr(
+                    agent.lastIndexOf(SAFARI_VERSION_TOKEN) + SAFARI_VERSION_TOKEN.length, SAFARI_VERSION_TEXT_LENGTH));
+                if (safariVersion >= SAFARI_MIN_VERSION_FOR_SCHEME) {
                     window.top.location.href = schemaGeneral;
                 } else {
                     iframe.src = schemaGeneral;
                 }
             } else {
                 // Daum 브라우저는 Chrome 계열임에도 intent scheme을 지원하지 않아 별도 분기 처리
-                const chrome25 = agent.includes('chrome') &&
-                    navigator.appVersion.match(/Chrome\/(\d+\.\d+)/)[1] > 25;
-                if (chrome25 && !agent.includes('daum')) {
+                const isIntentCapableChrome = agent.includes('chrome') &&
+                    navigator.appVersion.match(/Chrome\/(\d+\.\d+)/)[1] > CHROME_MIN_VERSION_FOR_INTENT;
+                if (isIntentCapableChrome && !agent.includes('daum')) {
                     window.top.location.href = schemaIntent;
                 } else {
                     setTimeout(function () {
-                        if (+new Date() - clickedAt < 2000) gotoStore(device);
-                    }, 1500);
+                        if (+new Date() - clickedAt < ANDROID_STORE_REDIRECT_MAX_ELAPSED_MS) gotoStore(device);
+                    }, ANDROID_APP_OPEN_WAIT_MS);
                     iframe.src = schemaGeneral;
                 }
             }
-        }, 1);
+        }, SCHEME_CALL_DEFER_MS);
     }
 
+    /**
+     * 기기에 맞는 Kollus 플레이어 앱 스토어 페이지로 이동한다.
+     * @param {'ios'|'android'} device 기기 종류
+     */
     function gotoStore(device) {
         window.top.location.href = device === 'ios'
             ? 'https://itunes.apple.com/us/app/kollusplayer/id760006888?l=ko&ls=1&mt=8'
             : 'market://details?id=com.kollus.media';
     }
 
+    /**
+     * "스트리밍 재생"/"다운로드" 버튼 클릭 핸들러 — 발급된 JWT 로 SI 링크를 만들어
+     * Kollus 앱 스킴을 호출한다 (모바일 전용).
+     * @param {'path'|'download'} method 앱 동작 (path: 스트리밍 재생, download: 다운로드)
+     */
     function handlePlayerCall(method) {
         if (!currentJWT) {
             alert('먼저 JWT를 발급하세요.');
@@ -208,7 +270,7 @@
             return;
         }
         const schemeParam = method + '?url=' + encodeURIComponent(
-            'http://v.kr.kollus.com/si?jwt=' + currentJWT + '&custom_key=' + currentCustomKey
+            'https://v.kr.kollus.com/si?jwt=' + currentJWT + '&custom_key=' + currentCustomKey
         );
         kollusSchemeCall(schemeParam);
     }

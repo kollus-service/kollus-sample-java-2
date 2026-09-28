@@ -24,10 +24,20 @@ public class KollusApiException extends RuntimeException {
         this.responseBody = responseBody;
     }
 
+    /**
+     * Kollus API 가 반환한 HTTP 상태 코드를 반환합니다.
+     *
+     * @return 원격 API HTTP 상태 코드
+     */
     public int getStatusCode() {
         return statusCode;
     }
 
+    /**
+     * Kollus API 가 반환한 원본 응답 본문을 반환합니다.
+     *
+     * @return 원격 API 응답 본문 (JSON 문자열 등, 없으면 null)
+     */
     public Object getResponseBody() {
         return responseBody;
     }

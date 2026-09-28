@@ -1,3 +1,4 @@
+<!--/* 콘텐츠 업로드 페이지 — 서버 프록시(/api/upload/create-url)로 업로드 URL 을 발급받아 hidden iframe 대상 form 제출로 Kollus 업로드 서버에 전송하고 진행률을 폴링한다. */-->
 <!DOCTYPE html>
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head>
@@ -108,12 +109,20 @@
 (function () {
     'use strict';
 
+    /** 파일 크기 표시 단위 환산 기준 (1 KB = 1024 B) */
+    const BYTES_PER_UNIT = 1024;
+    /** progress_url 폴링 간격 (ms) — Kollus 진행률 API 를 과도하게 호출하지 않는 선에서 체감 지연이 없는 값 */
+    const PROGRESS_POLL_INTERVAL_MS = 5000;
+    /** 업로드 완료로 판단하는 진행률 (%) */
+    const UPLOAD_COMPLETE_PERCENT = 100;
+
     const passthroughCheckbox = document.getElementById('is-passthrough');
     const fieldTitle = document.getElementById('field-title');
     const fieldProfileKey = document.getElementById('field-profile-key');
     const fieldEncryption = document.getElementById('field-encryption');
 
-    passthroughCheckbox.addEventListener('change', () => {
+    /** 패스스루 체크 여부에 따라 제목/암호화 필드를 숨기고 프로파일 키 필드를 노출한다. */
+    function handlePassthroughToggle() {
         const checked = passthroughCheckbox.checked;
         fieldTitle.style.display = checked ? 'none' : '';
         fieldEncryption.style.display = checked ? 'none' : '';
@@ -121,25 +130,59 @@
         if (!checked) {
             document.getElementById('profileKey').value = '';
         }
-    });
+    }
+
+    passthroughCheckbox.addEventListener('change', handlePassthroughToggle);
 
     const fileArea = document.getElementById('file-area');
     const fileInput = document.getElementById('fileInput');
     const fileNameEl = document.getElementById('file-name');
 
-    fileArea.addEventListener('click', () => fileInput.click());
-    fileArea.addEventListener('dragover', (e) => { e.preventDefault(); fileArea.classList.add('drag-over'); });
-    fileArea.addEventListener('dragleave', () => fileArea.classList.remove('drag-over'));
-    fileArea.addEventListener('drop', (e) => {
+    /** 파일 영역 클릭 시 숨겨진 file input 의 선택 대화상자를 연다. */
+    function handleFileAreaClick() {
+        fileInput.click();
+    }
+
+    /**
+     * 드래그 진입 시 브라우저 기본 동작(파일 열기)을 막고 강조 스타일을 적용한다.
+     * @param {DragEvent} e
+     */
+    function handleFileAreaDragOver(e) {
+        e.preventDefault();
+        fileArea.classList.add('drag-over');
+    }
+
+    /** 드래그가 영역을 벗어나면 강조 스타일을 제거한다. */
+    function handleFileAreaDragLeave() {
+        fileArea.classList.remove('drag-over');
+    }
+
+    /**
+     * 드롭된 첫 번째 파일을 form 의 file input 에 반영한다.
+     * @param {DragEvent} e
+     */
+    function handleFileAreaDrop(e) {
         e.preventDefault();
         fileArea.classList.remove('drag-over');
         const file = e.dataTransfer.files[0];
         if (file) setFile(file);
-    });
-    fileInput.addEventListener('change', () => {
-        if (fileInput.files[0]) setFile(fileInput.files[0]);
-    });
+    }
 
+    /** 파일 선택 대화상자로 고른 파일을 화면에 반영한다. */
+    function handleFileInputChange() {
+        if (fileInput.files[0]) setFile(fileInput.files[0]);
+    }
+
+    fileArea.addEventListener('click', handleFileAreaClick);
+    fileArea.addEventListener('dragover', handleFileAreaDragOver);
+    fileArea.addEventListener('dragleave', handleFileAreaDragLeave);
+    fileArea.addEventListener('drop', handleFileAreaDrop);
+    fileInput.addEventListener('change', handleFileInputChange);
+
+    /**
+     * 선택/드롭된 파일을 form 의 file input 에 동기화하고 파일명·크기를 표시한다.
+     * @param {File} file
+     */
     function setFile(file) {
         // 드래그앤드롭으로 받은 파일을 실제 form의 file input에 동기화한다
         const dt = new DataTransfer();
@@ -149,13 +192,23 @@
         fileNameEl.style.display = 'block';
     }
 
+    /**
+     * 바이트 수를 B/KB/MB/GB 단위 문자열로 변환한다.
+     * @param {number} bytes
+     * @returns {string}
+     */
     function formatBytes(bytes) {
-        if (bytes < 1024) return bytes + ' B';
-        if (bytes < 1024 ** 2) return (bytes / 1024).toFixed(1) + ' KB';
-        if (bytes < 1024 ** 3) return (bytes / 1024 ** 2).toFixed(1) + ' MB';
-        return (bytes / 1024 ** 3).toFixed(2) + ' GB';
+        if (bytes < BYTES_PER_UNIT) return bytes + ' B';
+        if (bytes < BYTES_PER_UNIT ** 2) return (bytes / BYTES_PER_UNIT).toFixed(1) + ' KB';
+        if (bytes < BYTES_PER_UNIT ** 3) return (bytes / BYTES_PER_UNIT ** 2).toFixed(1) + ' MB';
+        return (bytes / BYTES_PER_UNIT ** 3).toFixed(2) + ' GB';
     }
 
+    /**
+     * 상태 메시지 영역에 문구를 표시한다.
+     * @param {string} msg 표시할 메시지
+     * @param {'info'|'success'|'error'} type 메시지 스타일 클래스
+     */
     function showStatus(msg, type) {
         const el = document.getElementById('status-msg');
         el.textContent = msg;
@@ -166,9 +219,12 @@
     let progressPollIntervalId = null;
 
     /**
-     * create-url 응답의 progress_url을 5초 간격으로 폴링해 업로드 진행률을 갱신한다.
+     * create-url 응답의 progress_url을 PROGRESS_POLL_INTERVAL_MS 간격으로 폴링해 업로드 진행률을 갱신한다.
      * form+iframe 제출은 cross-origin이라 전송 성공/실패를 JS로 직접 읽을 수 없으므로,
-     * 완료 판단은 전적으로 이 폴링 결과(진행률 100%)에 의존한다.
+     * 완료 판단은 전적으로 이 폴링 결과(진행률 UPLOAD_COMPLETE_PERCENT 도달)에 의존한다.
+     * @param {string} progressUrl create-url 응답의 진행률 조회 URL
+     * @param {HTMLButtonElement} uploadBtn 완료 시 상태를 복구할 업로드 버튼
+     * @param {string} uploadFileKey 완료 메시지에 표시할 업로드 파일 키
      */
     function startProgressUrlPolling(progressUrl, uploadBtn, uploadFileKey) {
         if (progressPollIntervalId) clearInterval(progressPollIntervalId);
@@ -187,7 +243,7 @@
                 const pct = data.result.progress;
                 progressBar.style.width = pct + '%';
                 progressPct.textContent = pct + '%';
-                if (pct >= 100) {
+                if (pct >= UPLOAD_COMPLETE_PERCENT) {
                     clearInterval(progressPollIntervalId);
                     progressPollIntervalId = null;
                     uploadBtn.textContent = '업로드 완료';
@@ -195,15 +251,21 @@
                     showStatus('업로드가 완료되었습니다. 파일 키: ' + uploadFileKey, 'success');
                 }
             } catch (error) {
+                // 일시적 네트워크 오류 또는 진행률 응답 파싱 실패: 다음 폴링에서 재시도되므로 콘솔 기록만 남김
                 console.error('[Kollus] Progress URL fetch failed:', error);
             }
         };
 
         poll();
-        progressPollIntervalId = setInterval(poll, 5000);
+        progressPollIntervalId = setInterval(poll, PROGRESS_POLL_INTERVAL_MS);
     }
 
-    document.getElementById('uploadBtn').addEventListener('click', async () => {
+    /**
+     * "업로드 시작" 버튼 클릭 핸들러 — 서버 프록시로 업로드 URL 을 발급받은 뒤
+     * hidden iframe 을 target 으로 실제 form 을 제출하고 진행률 폴링을 시작한다.
+     * @returns {Promise<void>}
+     */
+    async function handleUploadClick() {
         const uploadBtn = document.getElementById('uploadBtn');
         const file = fileInput.files[0];
         const isPassthrough = passthroughCheckbox.checked;
@@ -268,12 +330,15 @@
             uploadForm.submit();
 
         } catch (error) {
+            // 업로드 URL 발급 실패(서버/Kollus API 오류) 또는 응답 파싱 실패: 사용자에게 표시하고 버튼을 재시도 가능 상태로 복구
             console.error('[Kollus] Upload Error:', error);
             showStatus('업로드 실패: ' + error.message, 'error');
             uploadBtn.textContent = '업로드 시작';
             uploadBtn.disabled = false;
         }
-    });
+    }
+
+    document.getElementById('uploadBtn').addEventListener('click', handleUploadClick);
 }());
 </script>
 </body>

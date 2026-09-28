@@ -32,7 +32,12 @@ public class MultiDrmController {
         this.multiDrmService = multiDrmService;
     }
 
-    /** GET /multidrm — 멀티 DRM 재생 입력 폼 페이지 */
+    /**
+     * GET /multidrm — 멀티 DRM 재생 입력 폼 페이지
+     *
+     * @param model 뷰 모델 (페이지 제목 전달)
+     * @return 뷰 이름 {@code multidrm}
+     */
     @GetMapping("/multidrm")
     public String form(Model model) {
         model.addAttribute("title", "Kollus 멀티 DRM 플레이어");
@@ -46,6 +51,9 @@ public class MultiDrmController {
      * @param contentId       멀티 DRM 콘텐츠 ID / 업로드 파일 키 (필수)
      * @param cuid            시청자 ID (선택, 미지정 시 guest)
      * @param userAgent       DRM/스트리밍 방식 판별용 요청 User-Agent
+     * @param model           뷰 모델 (성공 시 playerUrl, 실패 시 status/message/error 전달)
+     * @param response        실패 시 HTTP 상태 코드를 설정할 응답 객체
+     * @return 성공 시 뷰 이름 {@code player}, 실패 시 {@code error}
      */
     @GetMapping("/player/multi-drm")
     public String player(@RequestParam("media_content_key") String mediaContentKey,
@@ -66,7 +74,7 @@ public class MultiDrmController {
             // JWT 생성/암호화/설정 누락은 서버 설정 문제이므로 500 으로 에러 페이지 렌더링
             log.error("[Kollus] 멀티 DRM 플레이어 URL 생성 실패", e);
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            model.addAttribute("status", 500);
+            model.addAttribute("status", HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
             model.addAttribute("message", "Kollus 멀티 DRM 플레이어 URL 생성에 실패했습니다.");
             model.addAttribute("error", e.getMessage());
             return "error";

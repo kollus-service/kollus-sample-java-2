@@ -54,10 +54,10 @@ public class UploadApiController {
     public ResponseEntity<Object> createUrl(@RequestBody(required = false) Map<String, Object> body) {
         Map<String, Object> params = body != null ? body : Map.of();
 
-        boolean passthrough = asBoolean(params.get("is_passthrough"));
+        boolean isPassthrough = asBoolean(params.get("is_passthrough"));
         String profileKey = asNonEmptyString(params.get(PROFILE_KEY));
 
-        if (passthrough && profileKey == null) {
+        if (isPassthrough && profileKey == null) {
             return ResponseEntity.badRequest().body(Map.of(
                     "status", "fail",
                     "error", "패스스루 업로드 시 profile_key(인코딩 프로파일 키)는 필수입니다"));
@@ -85,7 +85,7 @@ public class UploadApiController {
         putIfTruthy(form, "is_audio_upload", params.get("is_audio_upload"));
 
         String response;
-        if (passthrough) {
+        if (isPassthrough) {
             form.put("is_passthrough", "1");
             form.put(PROFILE_KEY, profileKey);
             response = uploadService.createPassthroughUploadUrl(token, form);
@@ -131,6 +131,7 @@ public class UploadApiController {
         try {
             return Integer.parseInt(value.toString().trim());
         } catch (NumberFormatException e) {
+            // 숫자 파싱 실패: expire_time 등 선택 파라미터가 비정상이면 기본값으로 처리해 업로드 URL 발급을 막지 않음
             return defaultValue;
         }
     }

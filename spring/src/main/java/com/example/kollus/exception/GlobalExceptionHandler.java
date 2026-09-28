@@ -36,6 +36,9 @@ public class GlobalExceptionHandler {
 
     /**
      * Kollus API 호출 실패 처리 — 원격 상태 코드와 응답 본문을 그대로 전달합니다.
+     *
+     * @param e Kollus API 호출 실패 예외 (원격 상태 코드/응답 본문 포함)
+     * @return 원격 API 상태 코드 그대로, {@code {status: "fail", error: 원격 응답}} 본문
      */
     @ExceptionHandler(KollusApiException.class)
     public ResponseEntity<Map<String, Object>> handleKollusApi(KollusApiException e) {
@@ -49,7 +52,10 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * 예상치 못한 오류 처리 — 500 으로 응답합니다.
+     * 예상치 못한 오류 처리 — 500(Internal Server Error) 으로 응답합니다.
+     *
+     * @param e 처리되지 않은 예외
+     * @return 500 상태, {@code {status: "fail", error: 예외 메시지}} 본문
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleUnexpected(Exception e) {

@@ -42,3 +42,10 @@ application-local.yaml
 application-local.yml
 # LMS 콜백 로그
 logs/
+
+# 가이드 공통 항목
+.env
+config.yml
+target/
+node_modules/
+vendor/

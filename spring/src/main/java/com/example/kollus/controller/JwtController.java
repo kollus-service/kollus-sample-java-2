@@ -30,13 +30,23 @@ public class JwtController {
         this.properties = properties;
     }
 
-    /** GET /jwt/create — 쿼리 파라미터로 토큰 발급 */
+    /**
+     * GET /jwt/create — 쿼리 파라미터로 토큰 발급
+     *
+     * @param params 쿼리 파라미터 (mck 필수, secretKey/customKey 미지정 시 서버 설정값 사용)
+     * @return 토큰/링크/페이로드 또는 검증 오류(400)
+     */
     @GetMapping("/create")
     public ResponseEntity<Object> createGet(@RequestParam Map<String, String> params) {
         return createJwt(new LinkedHashMap<>(params));
     }
 
-    /** POST /jwt/create — JSON 바디로 토큰 발급 */
+    /**
+     * POST /jwt/create — JSON 바디로 토큰 발급
+     *
+     * @param body JSON 요청 바디 (mck 필수, secretKey/customKey 미지정 시 서버 설정값 사용; null 이면 빈 파라미터로 처리)
+     * @return 토큰/링크/페이로드 또는 검증 오류(400)
+     */
     @PostMapping("/create")
     public ResponseEntity<Object> createPost(@RequestBody(required = false) Map<String, Object> body) {
         return createJwt(body != null ? new LinkedHashMap<>(body) : new LinkedHashMap<>());
