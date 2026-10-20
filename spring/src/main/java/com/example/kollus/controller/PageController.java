@@ -33,13 +33,13 @@ public class PageController {
     /**
      * GET /sample — JWT 발급 + 플레이어 샘플 UI
      *
-     * @param model 뷰 모델 (기본 Secret Key/Custom Key/MCK 전달)
+     * @param model 뷰 모델 (기본 Security Key/Custom Key/MCK 전달)
      * @return 뷰 이름 {@code sample}
      */
     @GetMapping("/sample")
     public String sample(Model model) {
         model.addAttribute("title", "Kollus Player Sample");
-        model.addAttribute("defaultSecretKey", properties.secretKey());
+        model.addAttribute("defaultSecurityKey", properties.securityKey());
         model.addAttribute("defaultCustomKey", properties.customKey());
         model.addAttribute("defaultMck", properties.sampleMck());
         return "sample";
@@ -48,13 +48,12 @@ public class PageController {
     /**
      * GET /upload — 파일 업로드 UI
      *
-     * @param model 뷰 모델 (기본 API 토큰/카테고리 키 전달)
+     * @param model 뷰 모델 (기본 카테고리 키 전달)
      * @return 뷰 이름 {@code upload}
      */
     @GetMapping("/upload")
     public String upload(Model model) {
         model.addAttribute("title", "Kollus 파일 업로드");
-        model.addAttribute("defaultApiToken", properties.apiToken());
         model.addAttribute("defaultCategoryKey", properties.categoryKey());
         return "upload";
     }

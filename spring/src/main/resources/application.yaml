@@ -11,23 +11,23 @@ server:
   port: 8080
 
 # Kollus 연동 설정
-# 민감 정보(secret-key, custom-key, api-token, category-key)는 커밋 대상이 아닌
+# 민감 정보(security-key, custom-key, api-token, category-key)는 커밋 대상이 아닌
 # application-local.yaml 에서 주입합니다. (application-local.yaml.example 참고)
 kollus:
-  secret-key: ""
+  security-key: ""
   custom-key: ""
   api-token: ""
   category-key: ""
   # 샘플 플레이어 페이지에 기본 노출할 MCK — 실제 서비스에서는 제거
   sample-mck: ""
-  # 다음 회차 기능 샘플 MCK 목록
-  next-episode-mcks: []
-  # 멀티 DRM(inkaDRM/Pallycon) 재생 — 일반 재생과 별도 Kollus 계정 + Pallycon 계정 키 사용.
-  # 민감 정보(multidrm.*, inka.access-key/site-key/site-id)는 application-local.yaml 에서 주입합니다.
+  # 다음 회차 기능 샘플 MCK 목록 (콤마 구분, 예: "mckA,mckB")
+  next-episode-mcks: ""
+  # 멀티 DRM(DoveRunner) 재생 — 일반 재생과 별도 Kollus 계정 + DoveRunner 계정 키 사용.
+  # 민감 정보(multidrm.*, doverunner.access-key/site-key/site-id)는 application-local.yaml 에서 주입합니다.
   multidrm:
     security-key: ""
     custom-key: ""
-  inka:
+  doverunner:
     access-key: ""
     site-key: ""
     site-id: ""

@@ -13,8 +13,8 @@
     <div class="card">
         <h3>JWT 발급</h3>
         <div class="field">
-            <label for="secretKey">Secret Key:</label>
-            <input id="secretKey" type="text" th:value="${defaultSecretKey}">
+            <label for="securityKey">Security Key:</label>
+            <input id="securityKey" type="text" th:value="${defaultSecurityKey}">
         </div>
         <div class="field">
             <label for="customKey">Custom Key:</label>
@@ -47,7 +47,9 @@
                 <iframe id="kollusIframe"
                         src="about:blank"
                         allowfullscreen
-                        allow="local-network-access; loopback-network; accelerometer; autoplay; encrypted-media; fullscreen; picture-in-picture;"></iframe>
+                        webkitallowfullscreen
+                        mozallowfullscreen
+                        allow="encrypted-media; local-network-access"></iframe>
             </div>
         </div>
 
@@ -105,7 +107,7 @@
         const mck = document.getElementById('mck').value.trim();
         const cuid = document.getElementById('cuid').value.trim();
         const expt = document.getElementById('expt').value.trim();
-        const secretKey = document.getElementById('secretKey').value.trim();
+        const securityKey = document.getElementById('securityKey').value.trim();
         const customKey = document.getElementById('customKey').value.trim();
 
         document.getElementById('errorMsg').style.display = 'none';
@@ -127,7 +129,7 @@
                     mck: mck,
                     cuid: cuid || 'sample_user',
                     expt: parseInt(expt) || DEFAULT_EXPIRE_MINUTES,
-                    secretKey: secretKey,
+                    securityKey: securityKey,
                     customKey: customKey
                 })
             });

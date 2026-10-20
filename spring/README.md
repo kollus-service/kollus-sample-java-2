@@ -4,29 +4,29 @@
 
 Kollus 미디어 플랫폼을 Spring Boot(Java 17) 환경에서 연동하는 서버/웹 샘플입니다.
 플레이어 JWT 발급과 iframe/모바일 앱 재생, Upload API 를 통한 콘텐츠 업로드, Kollus 플레이어가 호출하는 콜백(재생·DRM·다음 회차·LMS) 수신,
-그리고 Widevine/PlayReady/FairPlay 멀티 DRM(inkaDRM·Pallycon) 재생까지 하나의 서버에서 시연합니다. 외부 JWT 라이브러리 없이 HS256 서명을 직접 구현하고, 브라우저에서 직접 호출할 수 없는 Kollus API 는 서버가 프록시합니다.
+그리고 Widevine/PlayReady/FairPlay 멀티 DRM(DoveRunner) 재생까지 하나의 서버에서 시연합니다. 외부 JWT 라이브러리 없이 HS256 서명을 직접 구현하고, 브라우저에서 직접 호출할 수 없는 Kollus API 는 서버가 프록시합니다.
 
 홈(`/`)에는 Kollus 가 제공하는 공개 데모 콘텐츠 iframe(`https://v.kr.kollus.com/dzgAE3b9`)이 삽입되어 있어
 키 설정 없이도 플레이어 동작을 바로 확인할 수 있으며, 아래 각 샘플 페이지로 이동하는 링크를 제공합니다.
 
 ### 샘플 플레이어 `/sample`
 
-Secret Key, Custom Key, MCK를 입력해 서버(`POST /jwt/create`)에서 JWT를 발급받고 플레이어를 호출합니다.
+Security Key, Custom Key, MCK를 입력해 서버(`POST /jwt/create`)에서 JWT를 발급받고 플레이어를 호출합니다.
 
 - 웹 플레이어 (iframe) — 응답의 `link`(`https://v.kr.kollus.com/s?jwt=...&custom_key=...`)를 iframe `src` 로 지정
 - 모바일 전용 플레이어 — SI 링크(`/si?jwt=...`)를 Kollus 앱 커스텀 스킴(`kollus://`, Android Chrome 은 `intent://`)으로 호출, 앱 미설치 시 스토어 이동
 - 발급된 JWT 토큰 문자열 표시
 
-> **주의**: `/sample` 페이지는 Secret Key 를 클라이언트에 노출하는 샘플/데모용입니다.
+> **주의**: `/sample` 페이지는 Security Key 를 클라이언트에 노출하는 샘플/데모용입니다.
 > 실제 서비스에서는 서버 사이드 발급(`/jwt/create`)만 사용하세요.
 
 ### 멀티 DRM 플레이어 `/multidrm`
 
-Widevine / PlayReady / FairPlay 멀티 DRM(inkaDRM·Pallycon) 재생 샘플입니다.
+Widevine / PlayReady / FairPlay 멀티 DRM(DoveRunner) 재생 샘플입니다.
 MCK, Content ID(멀티 DRM 콘텐츠 ID / 업로드 파일 키), CUID(선택)를 입력하면 서버 플레이어 라우트(`GET /player/multi-drm`)를 iframe 으로 로드합니다.
 
 - 브라우저 User-Agent 에 맞는 DRM 종류/스트리밍 방식(Widevine·dash / PlayReady·dash / FairPlay·hls)을 서버가 자동 선택
-- inkaDRM 라이선스 룰을 AES-256-CBC 로 암호화하고 SHA-256 해시를 계산해 `pallycon-customdata-v2` 커스텀 헤더 페이로드 조립
+- DoveRunner 라이선스 룰을 AES-256-CBC 로 암호화하고 SHA-256 해시를 계산해 `pallycon-customdata-v2` 커스텀 헤더 페이로드 조립
 - 일반 재생과 **다른 멀티 DRM 전용 Kollus 계정 키**(`kollus.multidrm.*`)로 JWT 서명
 - 설정 누락 시 누락 항목을 안내하는 에러 페이지(500) 렌더링
 
@@ -34,7 +34,7 @@ MCK, Content ID(멀티 DRM 콘텐츠 ID / 업로드 파일 키), CUID(선택)를
 
 Kollus Upload API를 통해 파일을 업로드합니다.
 
-- 업로드 URL 발급 (`POST /api/upload/create-url`) — 서버가 Kollus API 를 프록시
+- 업로드 URL 발급 (`POST /api/upload/create-url`) — 서버가 Kollus API 를 프록시 (API 토큰은 서버 설정값 `kollus.api-token` 만 사용)
   - 일반 업로드: `c-api-kr.kollus.com` / 응답 `{status, data}`
   - 패스스루 업로드(인코딩 없이 원본 그대로 저장): `upload.kr.kollus.com` / 응답 `{error, message, result}` / `profile_key` 필수
 - 발급된 `upload_url` 로 실제 `<form>` 을 hidden iframe 대상으로 제출해 파일 전송 (fetch/XHR 은 CORS preflight 에 막혀 사용하지 않음)
@@ -49,7 +49,7 @@ Kollus Upload API를 통해 파일을 업로드합니다.
 | POST | `/jwt/create` | JSON 바디로 JWT 발급 |
 
 - 필수 파라미터: `mck` (미디어 콘텐츠 키)
-- `secretKey`, `customKey` 미지정 시 서버 설정값(`kollus.secret-key` / `kollus.custom-key`) 사용
+- `securityKey`, `customKey` 미지정 시 서버 설정값(`kollus.security-key` / `kollus.custom-key`) 사용
 - 선택 파라미터: `cuid`, `expt`(분, 기본 3), `seek`, `seekable_end`, `intro`, `outro`, `play_section`, `mcpf`, `title`,
   `playback_rates`, `subtitle_policy`, `mc_subtitle_policy`, `next_episode`(기본 true), `playcallback_ignore`, `video_watermarking_code_policy`
 - 응답: `{ token, link, payload }`
@@ -71,7 +71,7 @@ LMS 콜백 요약 데이터는 `logs/lms.log` 에 한 줄 JSON 으로 기록됩�
 
 - JDK 17 이상 (Microsoft OpenJDK 17 기준) — Gradle 툴체인이 Java 17 을 요구합니다
 - Kollus 서비스 계정 및 API Key (Kollus 관리자 콘솔 로그인 필요)
-- (멀티 DRM 사용 시, 선택) 멀티 DRM 전용 Kollus 서비스 계정 + DoveRunner(Pallycon/inkaDRM) 계정
+- (멀티 DRM 사용 시, 선택) 멀티 DRM 전용 Kollus 서비스 계정 + DoveRunner 계정
 - Gradle 은 별도 설치가 필요 없습니다 (`gradlew` 래퍼 포함)
 
 ## 환경 설정
@@ -89,30 +89,30 @@ cp src/main/resources/application-local.yaml.example src/main/resources/applicat
 
 | 키 (`kollus.*`) | 설명 | 발급 위치 |
 |---|---|---|
-| `secret-key`   | JWT 서명 키          | 서비스 계정 > 보안키 |
+| `security-key` | JWT 서명 키          | 서비스 계정 > 보안키 |
 | `custom-key`   | 플레이어 URL 커스텀 키 | 서비스 계정 > 커스텀키 |
-| `api-token`    | Upload API 액세스 토큰 | 서비스 계정 > API 토큰 |
+| `api-token`    | Upload API 액세스 토큰 (서버에서만 사용, 업로드 페이지에서 입력받지 않음) | 서비스 계정 > API 토큰 |
 | `category-key` | 업로드 카테고리 키     | 콘텐츠 > 카테고리 |
 | `sample-mck`   | 샘플 플레이어 페이지에 기본 노출할 MCK (선택, 실제 서비스에서는 제거) | 콘텐츠 > 미디어 콘텐츠 키 |
-| `next-episode-mcks` | 다음 회차 콜백 샘플 MCK 목록 (선택, 예: `["mckA", "mckB"]`) | 콘텐츠 > 미디어 콘텐츠 키 |
+| `next-episode-mcks` | 다음 회차 콜백 샘플 MCK 목록 (선택, 콤마 구분 문자열, 예: `"mckA,mckB"`) | 콘텐츠 > 미디어 콘텐츠 키 |
 
-`next-episode-mcks` 에 샘플 MCK 목록을 넣으면 다음 회차 콜백이 동작합니다.
+`next-episode-mcks` 에 샘플 MCK 를 콤마로 구분해 넣으면 다음 회차 콜백이 동작합니다.
 
 ### 멀티 DRM 키 (선택 — `/multidrm` 재생 시에만 필요)
 
-멀티 DRM 은 일반 재생과 **다른 별도 Kollus 계정** + Pallycon(inkaDRM) 계정 키를 사용합니다. 사용하지 않으면 비워둬도 됩니다.
+멀티 DRM 은 일반 재생과 **다른 별도 Kollus 계정** + DoveRunner 계정 키를 사용합니다. 사용하지 않으면 비워둬도 됩니다.
 누락 상태로 `/player/multi-drm` 을 호출하면 어떤 키가 빠졌는지 안내하는 에러 페이지가 표시됩니다.
 
 | 키 (`kollus.*`) | 설명 | 발급 위치 / 기본값 |
 |---|---|---|
 | `multidrm.security-key` | 멀티 DRM 전용 JWT 서명 키 | 멀티 DRM 전용 서비스 계정 > 보안키 |
 | `multidrm.custom-key`   | 멀티 DRM 전용 플레이어 URL 커스텀 키 | 멀티 DRM 전용 서비스 계정 > 커스텀키 |
-| `inka.access-key`       | inkaDRM Access Key (커스텀 헤더 해시 계산용) | DoveRunner(Pallycon) 콘솔 > Access Key |
-| `inka.site-key`         | 라이선스 룰 AES-256-CBC 암호화 키 (32바이트) | DoveRunner 콘솔 > Site Key |
-| `inka.site-id`          | inkaDRM Site ID | DoveRunner 콘솔 > Site ID |
-| `inka.iv`               | 라이선스 룰 암호화 IV (16바이트) | 기본값 `0123456789abcdef` |
-| `inka.license-url`      | DoveRunner 라이선스 서버 URL | 기본값 `https://drm-license.doverunner.com/ri/licenseManager.do` |
-| `inka.certificate-url`  | DoveRunner FairPlay 인증서 서버 URL (`?siteId=` 는 서버가 자동 부착) | 기본값 `https://drm-license.doverunner.com/ri/fpsKeyManager.do` |
+| `doverunner.access-key`      | DoveRunner Access Key (커스텀 헤더 해시 계산용) | DoveRunner 콘솔 > Access Key |
+| `doverunner.site-key`        | 라이선스 룰 AES-256-CBC 암호화 키 (32바이트) | DoveRunner 콘솔 > Site Key |
+| `doverunner.site-id`         | DoveRunner Site ID | DoveRunner 콘솔 > Site ID |
+| `doverunner.iv`              | 라이선스 룰 암호화 IV (16바이트) | 기본값 `0123456789abcdef` |
+| `doverunner.license-url`     | DoveRunner 라이선스 서버 URL | 기본값 `https://drm-license.doverunner.com/ri/licenseManager.do` |
+| `doverunner.certificate-url` | DoveRunner FairPlay 인증서 서버 URL (`?siteId=` 는 서버가 자동 부착) | 기본값 `https://drm-license.doverunner.com/ri/fpsKeyManager.do` |
 
 ## 실행 방법
 
@@ -143,7 +143,7 @@ java -jar build/libs/kollus-0.0.1-SNAPSHOT.jar
 | 파일 | 설명 |
 |---|---|
 | `KollusApplication.java`               | Spring Boot 애플리케이션 진입점 |
-| `config/KollusProperties.java`         | `kollus.*` 커스텀 프로퍼티 바인딩 (record). 중첩 `MultiDrm`(security-key/custom-key), `Inka`(access-key/site-key/site-id/iv/license-url/certificate-url) 포함 |
+| `config/KollusProperties.java`         | `kollus.*` 커스텀 프로퍼티 바인딩 (record). 중첩 `MultiDrm`(security-key/custom-key), `Doverunner`(access-key/site-key/site-id/iv/license-url/certificate-url) 포함 |
 | `config/KollusApiConfig.java`          | Upload API(`c-api-kr.kollus.com`) / 패스스루 업로드 API(`upload.kr.kollus.com`) 용 `RestClient` 빈 |
 | `config/KollusHeaderFilter.java`       | 플레이어 iframe 권한 위임(`Permissions-Policy`) 및 Private Network Access(PNA) 허용 헤더 필터 |
 | `controller/PageController.java`       | `GET /`, `GET /sample`, `GET /upload` 페이지 렌더링 |
@@ -152,7 +152,7 @@ java -jar build/libs/kollus-0.0.1-SNAPSHOT.jar
 | `controller/UploadApiController.java`  | `POST /api/upload/create-url` 업로드 URL 발급 프록시 (일반/패스스루 분기, 파라미터 검증) |
 | `controller/CallbackController.java`   | `POST /callback/play`, `/drm`, `/next-episode`, `/lms` 콜백 처리 |
 | `service/KollusTokenService.java`      | HS256 JWT 생성/서명, 플레이어 URL 조립, 멀티 DRM 전용 키 서명(`buildMultiDrmPlayerUrl`), 콜백 JWT 서명 |
-| `service/KollusMultiDrmService.java`   | User-Agent → DRM 종류/스트리밍 방식 판별, inkaDRM 라이선스 룰 암호화·해시, `drm_policy` 조립 |
+| `service/KollusMultiDrmService.java`   | User-Agent → DRM 종류/스트리밍 방식 판별, DoveRunner 라이선스 룰 암호화·해시, `drm_policy` 조립 |
 | `service/KollusUploadService.java`     | Kollus Upload API 프록시 (`createUploadUrl`, `createPassthroughUploadUrl`) |
 | `dto/TokenResponse.java`               | JWT 발급 결과 (`token`, `link`, `payload`) |
 | `exception/KollusApiException.java`    | Kollus API 호출 실패 예외 (원격 상태 코드 + 응답 본문 보존) |
@@ -184,7 +184,7 @@ java -jar build/libs/kollus-0.0.1-SNAPSHOT.jar
   ├── GET /multidrm
   │     └── iframe GET /player/multi-drm?media_content_key=&content_id=[&cuid=]
   │           ├── User-Agent → DRM 종류/스트리밍 방식 판별
-  │           ├── inkaDRM 라이선스 룰 암호화 + 해시 → pallycon-customdata-v2 커스텀 헤더
+  │           ├── DoveRunner 라이선스 룰 암호화 + 해시 → pallycon-customdata-v2 커스텀 헤더
   │           └── 멀티 DRM 전용 키로 JWT 서명 → 플레이어 URL → player.html (iframe)
   │
   ├── GET /upload
@@ -202,7 +202,7 @@ java -jar build/libs/kollus-0.0.1-SNAPSHOT.jar
 
 ### 플레이어 재생 (JWT)
 
-1. `/sample` 의 `handleJwtIssue()` 가 `POST /jwt/create` 에 `{ mck, cuid, expt, secretKey, customKey }` JSON 을 전송합니다.
+1. `/sample` 의 `handleJwtIssue()` 가 `POST /jwt/create` 에 `{ mck, cuid, expt, securityKey, customKey }` JSON 을 전송합니다.
 2. `KollusTokenService.generatePlayerToken()` 이 페이로드(`cuid`, `expt`, `mc[]`, 전역 옵션)를 만들고 HS256 으로 서명해
    `https://v.kr.kollus.com/s?jwt=...&custom_key=...` 링크를 반환합니다.
 3. 응답의 `link` 를 iframe `src` 로 지정해 웹 플레이어를 재생합니다.
@@ -213,7 +213,7 @@ java -jar build/libs/kollus-0.0.1-SNAPSHOT.jar
 1. `/multidrm` 의 `handlePlay()` 가 `/player/multi-drm?media_content_key=…&content_id=…[&cuid=…]` 를 iframe `src` 로 지정합니다.
    서버가 요청 User-Agent 로 DRM 을 판별하므로 fetch 가 아닌 **브라우저가 직접 로드**하도록 iframe 을 사용합니다.
 2. `MultiDrmController.player()` → `KollusMultiDrmService.buildPlayerUrl()`:
-   - `kollus.multidrm.*` / `kollus.inka.*` 설정 검증 (누락 시 `IllegalStateException` → 500 `error.html`)
+   - `kollus.multidrm.*` / `kollus.doverunner.*` 설정 검증 (누락 시 `IllegalStateException` → 500 `error.html`)
    - User-Agent 매핑: `CriOS`·`Safari` → FairPlay/hls, `Edge`·`Edg`·`Opera`·`MSIE`·`Trident` → PlayReady/dash,
      `Firefox`·`Chrome` → Widevine/dash (기본값), Mac 용 Edge 는 Chromium 엔진이므로 Widevine 으로 재분류
    - 고정 라이선스 룰(JSON)을 `site-key`/`iv` 로 AES-256-CBC 암호화 → base64 `token`
@@ -226,7 +226,7 @@ java -jar build/libs/kollus-0.0.1-SNAPSHOT.jar
 ### 콘텐츠 업로드
 
 1. `/upload` 의 `handleUploadClick()` 이 `POST /api/upload/create-url` 로 업로드 URL 발급을 요청합니다.
-   서버(`UploadApiController` → `KollusUploadService`)가 `access_token`/`category_key` 미지정 시 설정값으로 대체하고,
+   서버(`UploadApiController` → `KollusUploadService`)가 `access_token` 은 항상 설정값(`kollus.api-token`)을 사용하고(요청으로 받지 않음), `category_key` 는 미지정 시 설정값으로 대체하며,
    `is_passthrough` 여부에 따라 일반(`c-api-kr.kollus.com/api/upload/create-url`) 또는 패스스루(`upload.kr.kollus.com/api/v1/create_url`) 엔드포인트를 호출합니다.
 2. 응답에서 `upload_url`, `progress_url`, `upload_file_key` 를 꺼냅니다. (일반 `{status:"ok", data}` / 패스스루 `{error:0, result}`)
 3. **파일 전송은 XHR/fetch 가 아니라 실제 `<form>` 제출**입니다. Kollus 업로드 서버는 실제 form 제출(브라우저 네비게이션)을 전제로
@@ -237,7 +237,7 @@ java -jar build/libs/kollus-0.0.1-SNAPSHOT.jar
 
 ### 콜백
 
-- `play`/`drm` 콜백은 페이로드를 `kollus.secret-key` 로 HS256 서명한 JWT 를 `text/plain` 본문으로, `kollus.custom-key` 를 `X-KOLLUS-USERKEY` 헤더로 응답합니다.
+- `play`/`drm` 콜백은 페이로드를 `kollus.security-key` 로 HS256 서명한 JWT 를 `text/plain` 본문으로, `kollus.custom-key` 를 `X-KOLLUS-USERKEY` 헤더로 응답합니다.
 - `next-episode` 콜백은 `next-episode-mcks` 에서 다음 MCK 를 골라 JWT 를 발급하고 `/s?` 를 `/si?` 로 바꾼 SI 링크를 `next_url` 로 반환합니다.
 - `lms` 콜백은 `json_data` 를 파싱해 진도율·구간 이동(트리키 클릭) 여부를 요약하고 `logs/lms.log` 에 기록한 뒤 항상 200 을 응답합니다.
 

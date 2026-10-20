@@ -8,7 +8,6 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
-import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.Map;
 
@@ -41,16 +40,15 @@ public class KollusUploadService {
      * @throws KollusApiException API 호출 실패 시
      */
     public String createUploadUrl(String accessToken, Map<String, String> formParams) {
-        String uri = UriComponentsBuilder.fromPath("/upload/create-url")
-                .queryParam(ACCESS_TOKEN_PARAM, accessToken)
-                .toUriString();
-
         MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
         formParams.forEach(body::add);
 
         try {
+            // access_token 은 URI 변수로 전달해 예약 문자(&, =, + 등)까지 URL 인코딩
             return kollusUploadRestClient.post()
-                    .uri(uri)
+                    .uri(builder -> builder.path("/upload/create-url")
+                            .queryParam(ACCESS_TOKEN_PARAM, "{accessToken}")
+                            .build(accessToken))
                     .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                     .body(body)
                     .retrieve()
@@ -77,16 +75,15 @@ public class KollusUploadService {
      * @throws KollusApiException API 호출 실패 시
      */
     public String createPassthroughUploadUrl(String accessToken, Map<String, String> formParams) {
-        String uri = UriComponentsBuilder.fromPath("/create_url")
-                .queryParam(ACCESS_TOKEN_PARAM, accessToken)
-                .toUriString();
-
         MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
         formParams.forEach(body::add);
 
         try {
+            // access_token 은 URI 변수로 전달해 예약 문자(&, =, + 등)까지 URL 인코딩
             return kollusUploadPassthroughRestClient.post()
-                    .uri(uri)
+                    .uri(builder -> builder.path("/create_url")
+                            .queryParam(ACCESS_TOKEN_PARAM, "{accessToken}")
+                            .build(accessToken))
                     .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                     .body(body)
                     .retrieve()

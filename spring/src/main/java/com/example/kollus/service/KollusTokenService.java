@@ -46,11 +46,11 @@ public class KollusTokenService {
     /**
      * Kollus 플레이어 JWT 토큰과 재생 URL을 생성합니다.
      *
-     * @param params 토큰 생성 파라미터 (secretKey, customKey, mck 필수 / 그 외 선택)
+     * @param params 토큰 생성 파라미터 (securityKey, customKey, mck 필수 / 그 외 선택)
      * @return JWT 토큰, 재생 URL, 페이로드
      */
     public TokenResponse generatePlayerToken(Map<String, Object> params) {
-        String secretKey = asString(params.get("secretKey"));
+        String securityKey = asString(params.get("securityKey"));
         String customKey = asString(params.get("customKey"));
         String mck = asString(params.get("mck"));
         int expt = asInt(params.get("expt"), DEFAULT_EXPIRY_MINUTES);
@@ -102,7 +102,7 @@ public class KollusTokenService {
         payload.put("mc", mc);
 
         // 2. JWT 인코딩 (HS256)
-        String token = encodeJwt(payload, secretKey);
+        String token = encodeJwt(payload, securityKey);
 
         // 3. 재생 URL 생성
         String link = DEFAULT_PLAYER_BASE_URL + "s?jwt=" + token + "&custom_key=" + customKey;
@@ -118,13 +118,13 @@ public class KollusTokenService {
      *
      * @param clientUserId        서비스 측 사용자 식별자 (cuid)
      * @param mediaContentEntries drm_policy 를 포함한 mc 항목 배열
-     * @param secretKey           멀티 DRM 전용 JWT 서명 키
+     * @param securityKey         멀티 DRM 전용 JWT 서명 키
      * @param customKey           멀티 DRM 전용 플레이어 URL 커스텀 키
      * @return iframe src 에 사용할 플레이어 URL
      */
     public String buildMultiDrmPlayerUrl(String clientUserId,
                                          List<Map<String, Object>> mediaContentEntries,
-                                         String secretKey,
+                                         String securityKey,
                                          String customKey) {
         long exptInSeconds = Instant.now().getEpochSecond()
                 + (long) SECONDS_PER_MINUTE * DEFAULT_EXPIRY_MINUTES;
@@ -134,7 +134,7 @@ public class KollusTokenService {
         payload.put("mc", mediaContentEntries);
         payload.put("expt", exptInSeconds);
 
-        String token = encodeJwt(payload, secretKey);
+        String token = encodeJwt(payload, securityKey);
         return DEFAULT_PLAYER_BASE_URL + "s?jwt=" + token + "&custom_key=" + customKey;
     }
 
@@ -142,21 +142,21 @@ public class KollusTokenService {
      * Kollus 콜백 응답용 JWT를 HS256으로 서명합니다.
      *
      * @param payload   JWT 페이로드
-     * @param secretKey HMAC 서명 키
+     * @param securityKey HMAC 서명 키
      * @return 서명된 JWT 문자열
      */
-    public String signCallbackJwt(Object payload, String secretKey) {
-        return encodeJwt(payload, secretKey);
+    public String signCallbackJwt(Object payload, String securityKey) {
+        return encodeJwt(payload, securityKey);
     }
 
     /**
      * {@code header.payload.signature} 형태의 JWT를 생성합니다.
      */
-    private String encodeJwt(Object payload, String secretKey) {
+    private String encodeJwt(Object payload, String securityKey) {
         String header = base64UrlJson(JWT_HEADER);
         String body = base64UrlJson(payload);
         String content = header + "." + body;
-        String signature = sign(content, secretKey);
+        String signature = sign(content, securityKey);
         return content + "." + signature;
     }
 
@@ -176,10 +176,10 @@ public class KollusTokenService {
     /**
      * HMAC-SHA256 서명을 base64url 로 반환합니다.
      */
-    private String sign(String content, String secretKey) {
+    private String sign(String content, String securityKey) {
         try {
             Mac mac = Mac.getInstance(HMAC_ALGORITHM);
-            mac.init(new SecretKeySpec(secretKey.getBytes(StandardCharsets.UTF_8), HMAC_ALGORITHM));
+            mac.init(new SecretKeySpec(securityKey.getBytes(StandardCharsets.UTF_8), HMAC_ALGORITHM));
             byte[] raw = mac.doFinal(content.getBytes(StandardCharsets.UTF_8));
             return base64Url.encodeToString(raw);
         } catch (NoSuchAlgorithmException | InvalidKeyException e) {

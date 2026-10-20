@@ -33,7 +33,7 @@ public class JwtController {
     /**
      * GET /jwt/create — 쿼리 파라미터로 토큰 발급
      *
-     * @param params 쿼리 파라미터 (mck 필수, secretKey/customKey 미지정 시 서버 설정값 사용)
+     * @param params 쿼리 파라미터 (mck 필수, securityKey/customKey 미지정 시 서버 설정값 사용)
      * @return 토큰/링크/페이로드 또는 검증 오류(400)
      */
     @GetMapping("/create")
@@ -44,7 +44,7 @@ public class JwtController {
     /**
      * POST /jwt/create — JSON 바디로 토큰 발급
      *
-     * @param body JSON 요청 바디 (mck 필수, secretKey/customKey 미지정 시 서버 설정값 사용; null 이면 빈 파라미터로 처리)
+     * @param body JSON 요청 바디 (mck 필수, securityKey/customKey 미지정 시 서버 설정값 사용; null 이면 빈 파라미터로 처리)
      * @return 토큰/링크/페이로드 또는 검증 오류(400)
      */
     @PostMapping("/create")
@@ -65,9 +65,9 @@ public class JwtController {
                     .body(Map.of("error", "Missing required parameters: mck"));
         }
 
-        // secretKey/customKey 는 요청값이 비어 있으면 서버 기본 설정값 사용
-        params.put("secretKey", isTruthy(params.get("secretKey"))
-                ? params.get("secretKey") : properties.secretKey());
+        // securityKey/customKey 는 요청값이 비어 있으면 서버 기본 설정값 사용
+        params.put("securityKey", isTruthy(params.get("securityKey"))
+                ? params.get("securityKey") : properties.securityKey());
         params.put("customKey", isTruthy(params.get("customKey"))
                 ? params.get("customKey") : properties.customKey());
 

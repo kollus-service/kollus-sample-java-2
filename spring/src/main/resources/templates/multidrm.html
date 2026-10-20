@@ -9,7 +9,7 @@
 <body>
 <div class="container">
     <h1>Kollus 멀티 DRM 플레이어</h1>
-    <p style="color: #666; margin-top:-12px;">Widevine / PlayReady / FairPlay 멀티 DRM(inkaDRM·Pallycon) 재생 샘플입니다.
+    <p style="color: #666; margin-top:-12px;">Widevine / PlayReady / FairPlay 멀티 DRM(DoveRunner) 재생 샘플입니다.
         브라우저 User-Agent 에 맞는 DRM 종류와 스트리밍 방식이 서버에서 자동 선택됩니다.</p>
 
     <div class="card">
@@ -38,7 +38,9 @@
                 <iframe id="kollusIframe"
                         src="about:blank"
                         allowfullscreen
-                        allow="local-network-access; loopback-network; accelerometer; autoplay; encrypted-media; fullscreen; picture-in-picture;"></iframe>
+                        webkitallowfullscreen
+                        mozallowfullscreen
+                        allow="encrypted-media; local-network-access"></iframe>
             </div>
         </div>
     </div>

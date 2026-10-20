@@ -168,7 +168,7 @@ public class CallbackController {
 
         try {
             Map<String, Object> params = new LinkedHashMap<>();
-            params.put("secretKey", properties.secretKey());
+            params.put("securityKey", properties.securityKey());
             params.put("customKey", properties.customKey());
             params.put("cuid", (id != null && !id.isEmpty()) ? id : "unknown");
             params.put("mck", nextMck);
@@ -334,7 +334,7 @@ public class CallbackController {
      * @return 다음 회차 MCK, 없으면 null
      */
     private String getNextMck(String currentMck) {
-        List<String> mcks = properties.nextEpisodeMcks();
+        List<String> mcks = properties.nextEpisodeMckList();
         if (mcks.isEmpty()) {
             return null;
         }
@@ -351,7 +351,7 @@ public class CallbackController {
 
     /** Kollus 콜백 규격에 따라 JWT 본문과 X-KOLLUS-USERKEY 헤더를 응답합니다. */
     private ResponseEntity<String> callbackJwt(Object payload) {
-        String jwt = tokenService.signCallbackJwt(payload, properties.secretKey());
+        String jwt = tokenService.signCallbackJwt(payload, properties.securityKey());
         return ResponseEntity.ok()
                 .header(USERKEY_HEADER, properties.customKey())
                 .contentType(MediaType.TEXT_PLAIN)

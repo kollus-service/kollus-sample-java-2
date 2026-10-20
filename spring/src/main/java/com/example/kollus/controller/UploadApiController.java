@@ -20,7 +20,6 @@ import java.util.Map;
 @RequestMapping("/api")
 public class UploadApiController {
 
-    private static final String ACCESS_TOKEN_KEY = "access_token";
     private static final String CATEGORY_KEY = "category_key";
     private static final String PROFILE_KEY = "profile_key";
 
@@ -46,8 +45,7 @@ public class UploadApiController {
      *
      * @param body title/file_name/category_key/expire_time/is_audio_upload(선택),
      *             is_encryption_upload(선택, 일반 업로드 전용),
-     *             is_passthrough/profile_key(선택, 패스스루 업로드 시 profile_key 필수),
-     *             access_token(선택, 미지정 시 설정값)
+     *             is_passthrough/profile_key(선택, 패스스루 업로드 시 profile_key 필수)
      * @return Kollus API 원본 응답(JSON) 또는 검증 오류(400)
      */
     @PostMapping("/upload/create-url")
@@ -63,8 +61,8 @@ public class UploadApiController {
                     "error", "패스스루 업로드 시 profile_key(인코딩 프로파일 키)는 필수입니다"));
         }
 
-        String token = isTruthy(params.get(ACCESS_TOKEN_KEY))
-                ? params.get(ACCESS_TOKEN_KEY).toString() : properties.apiToken();
+        // access_token 은 요청값을 받지 않고 서버 설정값(kollus.api-token)만 사용
+        String token = properties.apiToken();
         String category = isTruthy(params.get(CATEGORY_KEY))
                 ? params.get(CATEGORY_KEY).toString() : properties.categoryKey();
         // 제목 미입력 시 파일명을 제목으로 사용 (패스스루는 제목이 의미 없어 미입력을 허용)

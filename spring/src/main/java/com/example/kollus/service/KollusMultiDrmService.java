@@ -23,14 +23,14 @@ import java.util.Map;
  * 멀티 DRM(Widevine/PlayReady/FairPlay) 재생 URL 생성 서비스.
  *
  * <p>요청 User-Agent 를 분석해 브라우저에 맞는 DRM 종류/스트리밍 방식을 자동 선택하고,
- * inkaDRM(Pallycon) 라이선스 룰을 AES-256-CBC 로 암호화 + SHA-256 해시를 계산해
+ * DoveRunner 라이선스 룰을 AES-256-CBC 로 암호화 + SHA-256 해시를 계산해
  * {@code pallycon-customdata-v2} 커스텀 헤더 페이로드를 조립합니다. 실제 JWT 서명/URL 구성은
  * 멀티 DRM 전용 계정 키로 {@link KollusTokenService#buildMultiDrmPlayerUrl}에 위임합니다.
  */
 @Service
 public class KollusMultiDrmService {
 
-    /** inkaDRM 라이선스 룰 (고정값) — AES-256-CBC 로 암호화되어 라이선스 토큰으로 사용됩니다. */
+    /** DoveRunner 라이선스 룰 (고정값) — AES-256-CBC 로 암호화되어 라이선스 토큰으로 사용됩니다. */
     private static final Map<String, Object> LICENSE_RULE = buildLicenseRule();
 
     /**
@@ -42,7 +42,7 @@ public class KollusMultiDrmService {
     /** 매칭되는 브라우저가 없을 때의 기본 DRM/스트리밍 방식 (Widevine/dash). */
     private static final String DEFAULT_BROWSER = "Chrome";
 
-    /** custom_header 키 이름 (Pallycon custom data v2). */
+    /** custom_header 키 이름 (DoveRunner custom data v2). */
     private static final String CUSTOM_HEADER_KEY = "pallycon-customdata-v2";
 
     /** AES 암호화 방식 (PKCS7 패딩). */
@@ -73,24 +73,25 @@ public class KollusMultiDrmService {
      * @param contentId       멀티 DRM 콘텐츠 ID (Kollus 업로드 파일 키)
      * @param userAgent       요청 User-Agent (DRM/스트리밍 방식 판별용)
      * @return iframe src 에 사용할 플레이어 URL
-     * @throws IllegalStateException 멀티 DRM/inkaDRM 설정 누락 또는 암호화 실패 시
+     * @throws IllegalStateException 멀티 DRM/DoveRunner 설정 누락 또는 암호화 실패 시
      */
     public String buildPlayerUrl(String clientUserId, String mediaContentKey, String contentId, String userAgent) {
         validateConfig();
 
         StreamingInfo streaming = resolveStreamingInfo(userAgent);
-        KollusProperties.Inka inka = properties.inka();
+        KollusProperties.Doverunner doverunner = properties.doverunner();
 
         Map<String, Object> customHeader = new LinkedHashMap<>();
         customHeader.put("key", CUSTOM_HEADER_KEY);
         customHeader.put("value", buildCustomHeaderPayload(clientUserId, contentId, streaming.drmType()));
 
         Map<String, Object> data = new LinkedHashMap<>();
-        data.put("license_url", inka.licenseUrl());
-        data.put("certificate_url", inka.certificateUrl() + "?siteId=" + inka.siteId());
+        data.put("license_url", doverunner.licenseUrl());
+        data.put("certificate_url", doverunner.certificateUrl() + "?siteId=" + doverunner.siteId());
         data.put("custom_header", customHeader);
 
         Map<String, Object> drmPolicy = new LinkedHashMap<>();
+        // drm_policy.kind 는 Kollus 플레이어 규격값이므로 "inka" 를 그대로 사용
         drmPolicy.put("kind", "inka");
         drmPolicy.put("streaming_type", streaming.streamingType());
         drmPolicy.put("data", data);
@@ -130,23 +131,23 @@ public class KollusMultiDrmService {
     }
 
     /**
-     * {@code pallycon-customdata-v2} 헤더에 담을 inkaDRM 커스텀 페이로드를 생성합니다.
+     * {@code pallycon-customdata-v2} 헤더에 담을 DoveRunner 커스텀 페이로드를 생성합니다.
      * (base64(JSON) 형태)
      */
     private String buildCustomHeaderPayload(String clientUserId, String contentId, String drmType) {
-        KollusProperties.Inka inka = properties.inka();
+        KollusProperties.Doverunner doverunner = properties.doverunner();
 
         String timestamp = TIMESTAMP_FORMAT.format(Instant.now());
         String token = buildEncryptedLicenseToken();
 
-        // 해시 입력 순서는 Pallycon 규격 고정: accessKey + drmType + siteId + userId + cid + token + timestamp
-        String hashInput = inka.accessKey() + drmType + inka.siteId()
+        // 해시 입력 순서는 DoveRunner 규격 고정: accessKey + drmType + siteId + userId + cid + token + timestamp
+        String hashInput = doverunner.accessKey() + drmType + doverunner.siteId()
                 + clientUserId + contentId + token + timestamp;
         String hash = Base64.getEncoder().encodeToString(sha256(hashInput));
 
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("drm_type", drmType);
-        payload.put("site_id", inka.siteId());
+        payload.put("site_id", doverunner.siteId());
         payload.put("user_id", clientUserId);
         payload.put("cid", contentId);
         payload.put("token", token);
@@ -158,16 +159,16 @@ public class KollusMultiDrmService {
     }
 
     /**
-     * 라이선스 룰을 AES-256-CBC 로 암호화해 inkaDRM 토큰(base64)을 생성합니다.
+     * 라이선스 룰을 AES-256-CBC 로 암호화해 DoveRunner 토큰(base64)을 생성합니다.
      */
     private String buildEncryptedLicenseToken() {
-        KollusProperties.Inka inka = properties.inka();
+        KollusProperties.Doverunner doverunner = properties.doverunner();
         try {
             byte[] rule = objectMapper.writeValueAsBytes(LICENSE_RULE);
 
             Cipher cipher = Cipher.getInstance(CIPHER_TRANSFORMATION);
-            SecretKeySpec keySpec = new SecretKeySpec(inka.siteKey().getBytes(StandardCharsets.UTF_8), "AES");
-            IvParameterSpec ivSpec = new IvParameterSpec(inka.iv().getBytes(StandardCharsets.UTF_8));
+            SecretKeySpec keySpec = new SecretKeySpec(doverunner.siteKey().getBytes(StandardCharsets.UTF_8), "AES");
+            IvParameterSpec ivSpec = new IvParameterSpec(doverunner.iv().getBytes(StandardCharsets.UTF_8));
             cipher.init(Cipher.ENCRYPT_MODE, keySpec, ivSpec);
 
             byte[] encrypted = cipher.doFinal(rule);
@@ -175,7 +176,7 @@ public class KollusMultiDrmService {
         } catch (GeneralSecurityException e) {
             // Site Key(32바이트)/IV(16바이트) 길이 불일치 등 설정 오류 또는 JVM 알고리즘 미지원
             throw new IllegalStateException(
-                    "inkaDRM 라이선스 룰 암호화에 실패했습니다 (Site Key 32바이트/IV 16바이트 확인): " + e.getMessage(), e);
+                    "DoveRunner 라이선스 룰 암호화에 실패했습니다 (Site Key 32바이트/IV 16바이트 확인): " + e.getMessage(), e);
         }
     }
 
@@ -202,15 +203,15 @@ public class KollusMultiDrmService {
                             + "kollus.multidrm.security-key / custom-key 를 입력하세요.");
         }
 
-        KollusProperties.Inka inka = properties.inka();
-        if (isBlank(inka.accessKey()) || isBlank(inka.siteKey()) || isBlank(inka.siteId())) {
+        KollusProperties.Doverunner doverunner = properties.doverunner();
+        if (isBlank(doverunner.accessKey()) || isBlank(doverunner.siteKey()) || isBlank(doverunner.siteId())) {
             throw new IllegalStateException(
-                    "inkaDRM(Pallycon) 키가 설정되지 않았습니다. application-local.yaml 의 "
-                            + "kollus.inka.access-key / site-key / site-id 를 입력하세요.");
+                    "DoveRunner 키가 설정되지 않았습니다. application-local.yaml 의 "
+                            + "kollus.doverunner.access-key / site-key / site-id 를 입력하세요.");
         }
-        if (isBlank(inka.iv()) || isBlank(inka.licenseUrl()) || isBlank(inka.certificateUrl())) {
+        if (isBlank(doverunner.iv()) || isBlank(doverunner.licenseUrl()) || isBlank(doverunner.certificateUrl())) {
             throw new IllegalStateException(
-                    "inkaDRM iv / license-url / certificate-url 설정이 누락되었습니다.");
+                    "DoveRunner iv / license-url / certificate-url 설정이 누락되었습니다.");
         }
     }
 
@@ -220,7 +221,7 @@ public class KollusMultiDrmService {
 
     // ── 상수 빌더 ──────────────────────────────────────────────
 
-    /** inkaDRM 라이선스 룰 고정값을 조립합니다 (순서 보존을 위해 LinkedHashMap 사용). */
+    /** DoveRunner 라이선스 룰 고정값을 조립합니다 (순서 보존을 위해 LinkedHashMap 사용). */
     private static Map<String, Object> buildLicenseRule() {
         Map<String, Object> widevine = new LinkedHashMap<>();
         widevine.put("security_level", 1);
